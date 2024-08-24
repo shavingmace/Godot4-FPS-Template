@@ -34,7 +34,7 @@ func Fire_Projectile(_spread: Vector2 ,_range: int, _proj:PackedScene, origin_po
 		"Hitscan":
 			Hit_Scan_Collision(Camera_Collision, damage,origin_point)
 		"Rigidbody_Projectile":
-			Launch_Rigid_Body_Projectile(Camera_Collision, _proj)
+			Launch_Rigid_Body_Projectile(Camera_Collision, _proj,origin_point)
 		"over_ride":
 			_over_ride_collision(Camera_Collision, damage)
 
@@ -61,7 +61,6 @@ func Camera_Ray_Cast(_spread: Vector2 = Vector2.ZERO, _range: float = 1000):
 
 func Hit_Scan_Collision(Collision: Array,_damage: float, origin_point: Vector3):
 	var Point = Collision[1]
-	print(_damage)
 	if Collision[0]:
 		Load_Decal(Point, Collision[2])
 		
@@ -80,7 +79,6 @@ func Hit_Scan_Collision(Collision: Array,_damage: float, origin_point: Vector3):
 				if pass_through and check_pass_through(Bullet_Collision.collider, Bullet_Collision.rid):
 					var pass_through_collision : Array = [Bullet_Collision.collider, Bullet_Collision.position, Bullet_Collision.normal]
 					var pass_through_damage: float = damage/2
-					#print(pass_through_damage)
 					Hit_Scan_Collision(pass_through_collision,pass_through_damage,Bullet_Collision.position)
 					return
 			queue_free()
@@ -105,19 +103,21 @@ func Load_Decal(_pos,_normal):
 		world.add_child(rd)
 		rd.global_translate(_pos+(_normal*.01))
 		
-		
-func Launch_Rigid_Body_Projectile(Collision_Data, _projectile):
+func Launch_Rigid_Body_Projectile(Collision_Data, _projectile, _origin_point):
 	var _Point = Collision_Data[1]
 	var _Norm = Collision_Data[2]
-	var _proj = _projectile.instantiate()
-	add_child(_proj)
+	var _proj : RigidBody3D = _projectile.instantiate()
+	_proj.position = _origin_point
+
+	var world = get_tree().get_first_node_in_group("World")
+	world.add_child(_proj)
 	
+	_proj.look_at(_Point)	
 	Projectiles_Spawned.push_back(_proj)
 
 	_proj.body_entered.connect(_on_body_entered.bind(_proj,_Norm))
 	
-	var _Direction = (_Point - global_transform.origin).normalized()
-	_proj.set_as_top_level(true)
+	var _Direction = (_Point - _origin_point).normalized()
 	_proj.set_linear_velocity(_Direction*Projectile_Velocity)
 
 func _on_body_entered(body, _proj, _norm):

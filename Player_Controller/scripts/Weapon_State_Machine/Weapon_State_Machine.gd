@@ -141,6 +141,10 @@ func shoot() -> void:
 		
 func load_projectile(_spread):
 	var _projectile:Projectile = current_weapon_slot.weapon.projectile_to_load.instantiate()
+	
+	_projectile.position = bullet_point.global_position
+	_projectile.rotation = owner.rotation
+	
 	bullet_point.add_child(_projectile)
 	add_signal_to_hud.emit(_projectile)
 	var bullet_point_origin = bullet_point.global_position
@@ -150,7 +154,7 @@ func reload() -> void:
 	if current_weapon_slot.current_ammo == current_weapon_slot.weapon.magazine:
 		return
 	elif not animation_player.is_playing():
-		if current_weapon_slot.reserve_ammo != 0:		
+		if current_weapon_slot.reserve_ammo != 0:
 			animation_player.queue(current_weapon_slot.weapon.reload_animation)
 		else:
 			animation_player.queue(current_weapon_slot.weapon.out_of_ammo_animation)
@@ -207,7 +211,6 @@ func drop(_slot: WeaponSlot) -> void:
 				
 				animation_player.play(current_weapon_slot.weapon.drop_animation)
 				weapon_index  = max(weapon_index-1,0)
-				print(weapon_stack[weapon_index])
 				exit(weapon_stack[weapon_index])
 	else:
 		return

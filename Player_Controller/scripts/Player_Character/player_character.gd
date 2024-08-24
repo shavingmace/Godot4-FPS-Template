@@ -5,7 +5,7 @@ extends CharacterBody3D
 @export var main_camera:Camera3D
 @export var animation_tree: AnimationTree
 
-var _speed: float
+
 var camera_rotation: Vector2 = Vector2(0.0,0.0)
 var mouse_sensitivity = 0.001
 var crouched: bool = false
@@ -33,6 +33,8 @@ enum {LEFT = 1, CENTRE = 0, RIGHT = -1}
 @export var sprint_cooldown_time: float = 3.0
 @export var sprint_time: float = 1.0
 @export var sprint_replenish_rate: float = 0.30
+@export var acceleration: float = 120
+@export_range(0.01,1.0) var air_acceleration_modifier: float = 0.1
 var sprint_on_cooldown: bool = false
 var sprint_time_remaining: float = sprint_time
 @onready var sprint_bar: Range = $CanvasLayer/SprintBar
@@ -55,7 +57,8 @@ var speed_modifier: float = NORMAL_speed
 var jump_gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var fall_gravity: float
 var jump_velocity: float
-var speed: float
+var base_speed: float 
+var _speed: float 
 var jump_available: bool = true
 var jump_buffer: bool = false
 
@@ -115,8 +118,8 @@ func calculate_movement_parameters() -> void:
 	jump_gravity = (2*jump_height)/pow(jump_peak_time,2)
 	fall_gravity = (2*jump_height)/pow(jump_fall_time,2)
 	jump_velocity = jump_gravity * jump_peak_time
-	speed = jump_distance/(jump_peak_time+jump_fall_time)
-	_speed = speed
+	base_speed = jump_distance/(jump_peak_time+jump_fall_time)
+	_speed = base_speed
 
 func lean(blend_amount: int) -> void:
 	if is_on_floor():
@@ -196,15 +199,18 @@ func _process(_delta: float) -> void:
 func _physics_process(_delta: float) -> void:
 	sprint_replenish(_delta)
 	lean_collision()
-		
+	
 	if crouched and crouch_blocked:
 		if !crouch_collision.is_colliding():
 			crouch_blocked = false
 			if !Input.is_action_pressed("crouch") and !crouch_toggle:
 				crouch()
-
+				
 	# Add the gravity.
+	var _acceleration
 	if not is_on_floor():
+		_acceleration = acceleration*air_acceleration_modifier
+		
 		if coyote_timer.is_stopped():
 			coyote_timer.start(coyote_time)
 	
@@ -213,9 +219,10 @@ func _physics_process(_delta: float) -> void:
 		else:
 			velocity.y -= fall_gravity * _delta
 	else:
+		_acceleration = acceleration
 		jump_available = true
 		coyote_timer.stop()
-		_speed = (speed / max((float(crouched)*crouch_speed_reduction),1)) * speed_modifier
+		_speed = (base_speed / max((float(crouched)*crouch_speed_reduction),1)) * speed_modifier
 		if jump_buffer:
 			jump()
 			jump_buffer = false
@@ -235,10 +242,9 @@ func _physics_process(_delta: float) -> void:
 	# As good practice, you should replace UI actions with custom gameplay actions.
 	var input_dir = Input.get_vector("left", "right", "up", "down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
-
-	velocity.x = move_toward(velocity.x, direction.x * _speed, speed)
-	velocity.z = move_toward(velocity.z, direction.z * _speed, speed)
-
+	velocity.x = move_toward(velocity.x, direction.x * _speed, _acceleration*_delta)
+	velocity.z = move_toward(velocity.z, direction.z * _speed, _acceleration*_delta)
+	
 	move_and_slide()
 
 func jump()->void:
